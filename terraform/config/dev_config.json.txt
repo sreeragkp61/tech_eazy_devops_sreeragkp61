@@ -1,0 +1,5 @@
+{
+  "instance_type": "t2.micro",
+  "dependencies": ["java-21-amazon-corretto-devel", "git", "maven"],
+  "repo_url": "https://github.com/Trainings-TechEazy/test-repo-for-devops.git"
+}
