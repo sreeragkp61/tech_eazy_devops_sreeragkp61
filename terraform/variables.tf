@@ -1,19 +1,21 @@
 variable "aws_region" {
-  default = "ap-south-1"  # Mumbai
-}
-
-variable "ami_id" {
-  default = "ami-0e1a57c5265125517"
-}
-
-variable "instance_type" {
-  default = "t2.micro"
-}
-
-variable "key_name" {
-  description = "Your AWS EC2 Key Pair name"
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
 }
 
 variable "stage" {
-  default = "dev"
+  description = "Deployment stage (dev/prod)"
+  type        = string
+  validation {
+    condition     = contains(["dev", "prod"], var.stage)
+    error_message = "Stage must be either 'dev' or 'prod'."
+  }
 }
+
+variable "key_name" {
+  description = "Name of the existing EC2 key pair for SSH access"
+  type        = string
+  default     = "my-key-pair"
+}
+
