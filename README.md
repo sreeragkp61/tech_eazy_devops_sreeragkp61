@@ -1,0 +1,2 @@
+# tech_eazy_devops_sreeragkp61
+devops assignment
