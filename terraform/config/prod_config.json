@@ -1,5 +1,7 @@
 {
   "instance_type": "t2.micro",
-  "dependencies": ["java-21-amazon-corretto-devel", "git", "maven"],
-  "repo_url": "https://github.com/Trainings-TechEazy/test-repo-for-devops.git"
+  "github_repo": "https://github.com/Trainings-TechEazy/test-repo-for-devops",
+  "shutdown_delay": 3600,
+  "java_version": "21",
+  "app_port": 8080
 }
