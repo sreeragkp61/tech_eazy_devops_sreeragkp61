@@ -45,13 +45,7 @@ resource "aws_security_group" "app_sg" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP access for application"
   }
 
   egress {
@@ -77,7 +71,7 @@ resource "aws_instance" "app_server" {
   user_data = filebase64("userdata.sh")
 
   tags = {
-    Name = "devops-app-${var.stage}"
+    Name  = "devops-app-${var.stage}"
     Stage = var.stage
   }
 
@@ -86,3 +80,4 @@ resource "aws_instance" "app_server" {
     command = "sleep ${local.config.shutdown_delay} && aws ec2 stop-instances --instance-ids ${self.id} --region ${var.aws_region}"
   }
 }
+
