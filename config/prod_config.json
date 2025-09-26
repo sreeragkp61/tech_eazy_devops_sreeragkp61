@@ -1,0 +1,7 @@
+{
+  "instance_type": "t3.micro",
+  "github_repo": "https://github.com/Trainings-TechEazy/test-repo-for-devops",
+  "shutdown_delay": 3600,
+  "java_version": "21",
+  "app_port": 8080
+}
