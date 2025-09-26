@@ -9,8 +9,8 @@ output "public_ip" {
 }
 
 output "app_url" {
-  description = "URL to access the application"
-  value       = "http://${aws_instance.app_server.public_ip}:8080"
+  description = "URL to access the application on port 80"
+  value       = "http://${aws_instance.app_server.public_ip}"
 }
 
 output "ssh_command" {
