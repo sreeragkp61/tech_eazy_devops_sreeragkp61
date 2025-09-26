@@ -3,5 +3,5 @@
   "github_repo": "https://github.com/Trainings-TechEazy/test-repo-for-devops",
   "shutdown_delay": 1800,
   "java_version": "21",
-  "app_port": 8080
+  "app_port": 80
 }
