@@ -1,39 +1,45 @@
 #!/bin/bash
 
-# Update system and install dependencies
+# Update system and install essential packages
 yum update -y
-amazon-linux-extras enable java-openjdk21
-yum install -y java-21-openjdk-devel git maven
+yum install -y git wget tar
 
-# Verify installations
+# Install Java 17 (Amazon Corretto)
+yum install -y java-17-amazon-corretto-devel
+
+# Verify Java installation
 java -version
-mvn -version
 
-# Clone and deploy application
+# Install Maven manually
 cd /home/ec2-user
+wget https://archive.apache.org/dist/maven/maven-3/3.8.4/binaries/apache-maven-3.8.4-bin.tar.gz
+tar -xzf apache-maven-3.8.4-bin.tar.gz
+export PATH=$PATH:/home/ec2-user/apache-maven-3.8.4/bin
+
+# Clone the app repository
 git clone https://github.com/Trainings-TechEazy/test-repo-for-devops app
 cd app
 
-# Build application
+# Build the application, skipping tests
 mvn clean package -DskipTests
 
-# Run application in background
-nohup java -jar target/techeazy-devops-0.0.1-SNAPSHOT.jar > app.log 2>&1 &
+# Fix permissions for logs
+touch /home/ec2-user/app.log
+chown ec2-user:ec2-user /home/ec2-user/app.log
 
-# Wait for app to start and test
-sleep 30
-curl -f http://localhost:8080 && echo "Application deployed successfully!"
+# Run the Spring Boot app on port 80
+sudo /usr/bin/java -jar /home/ec2-user/app/target/hellomvc-0.0.1-SNAPSHOT.jar --server.port=80 \
+    | sudo tee /home/ec2-user/app.log >/dev/null 2>&1 &
 
-# Create a simple health check endpoint
-echo "#!/bin/bash
-while true; do
-    if curl -f http://localhost:8080 >/dev/null 2>&1; then
-        echo \"App is running\"
-    else
-        echo \"App is down\"
-    fi
-    sleep 60
-done" > health_check.sh
+# Wait for app to start
+sleep 20
 
-chmod +x health_check.sh
-nohup ./health_check.sh > health.log 2>&1 &
+# Test whether app is running
+if curl -f http://localhost/hello; then
+    echo "SUCCESS: Application is running on port 80" >> /home/ec2-user/app.log
+else
+    echo "WARNING: Application may not be running properly" >> /home/ec2-user/app.log
+fi
+
+# Mark userdata completion
+echo "Userdata completed at $(date)" > /home/ec2-user/userdata-complete.txt
