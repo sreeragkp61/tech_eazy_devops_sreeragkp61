@@ -73,3 +73,6 @@ fi
 
 # Mark userdata completion
 echo "Userdata completed at $(date)" > /home/ec2-user/userdata-complete.txt
+
+# Schedule instance auto-shutdown after 30 minutes (1800 seconds)
+(sleep 1800 && sudo shutdown -h now) &
