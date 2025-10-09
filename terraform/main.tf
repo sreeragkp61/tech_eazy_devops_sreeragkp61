@@ -9,6 +9,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+  profile = "default"
 }
 
 locals {
@@ -217,4 +218,107 @@ resource "null_resource" "verify_s3_access" {
   }
   depends_on = [aws_s3_bucket.logs_bucket, aws_iam_role_policy_attachment.s3_readonly_attachment]
 }
+# ----------------- S3 Bucket for App JAR -----------------
+resource "aws_s3_bucket" "app_jar_bucket" {
+  bucket = var.app_jar_s3_bucket
+  tags   = { Name = "app-jar-bucket-${var.stage}", Environment = var.stage }
+}
 
+resource "aws_s3_bucket_public_access_block" "app_jar_bucket_block" {
+  bucket                  = aws_s3_bucket.app_jar_bucket.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_security_group" "elb_sg" {
+  name        = "devops-elb-${var.stage}-sg"
+  description = "Allow HTTP traffic to ELB"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "devops-elb-${var.stage}" }
+}
+
+resource "aws_elb" "app_elb" {
+  name            = "devops-app-elb-${var.stage}"
+  security_groups = [aws_security_group.elb_sg.id]
+  instances       = [for i in aws_instance.app_servers : i.id]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "HTTP"
+    lb_port           = 80
+    lb_protocol       = "HTTP"
+  }
+
+  health_check {
+    target              = "HTTP:80/hello"
+    interval            = 30
+    timeout             = 5
+    unhealthy_threshold = 2
+    healthy_threshold   = 2
+  }
+
+  cross_zone_load_balancing = true
+  idle_timeout              = 60
+  connection_draining       = true
+
+  access_logs {
+    bucket  = aws_s3_bucket.elb_logs.bucket
+    enabled = true
+  }
+
+  tags = {
+    Name  = "devops-app-elb-${var.stage}"
+    Stage = var.stage
+  }
+}
+
+
+resource "aws_instance" "app_servers" {
+  count                  = var.instance_count
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = local.config.instance_type
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
+  key_name               = var.key_name
+  iam_instance_profile   = aws_iam_instance_profile.ec2_s3_write_profile.name
+
+  user_data = base64encode(templatefile("userdata_poll_s3.sh", {
+    s3_bucket_name = var.app_jar_s3_bucket
+    aws_region     = var.aws_region
+    app_jar_name   = var.app_jar_name
+    app_port       = local.config.app_port
+  }))
+
+  tags = {
+    Name  = "devops-app-${var.stage}-${count.index + 1}"
+    Stage = var.stage
+  }
+}
+
+resource "aws_s3_bucket" "elb_logs" {
+  bucket = "devops-elb-logs-${var.stage}"
+  tags   = { Name = "ELB-logs-${var.stage}", Environment = var.stage }
+}
+
+resource "aws_s3_bucket_public_access_block" "elb_logs_block" {
+  bucket                  = aws_s3_bucket.elb_logs.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}

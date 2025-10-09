@@ -28,3 +28,24 @@ variable "s3_bucket_name" {
     error_message = "S3 bucket name must be provided and cannot be empty."
   }
 }
+variable "instance_count" {
+  description = "Number of EC2 instances to spin up"
+  type        = number
+  default     = 2
+}
+
+variable "app_jar_s3_bucket" {
+  description = "S3 bucket to upload app JAR"
+  type        = string
+   validation {
+    condition     = length(var.app_jar_s3_bucket) > 0
+    error_message = "S3 bucket name must be provided and cannot be empty."
+  }
+}
+
+variable "app_jar_name" {
+  description = "Name of the application JAR file"
+  type        = string
+  default     = "hellomvc-0.0.1-SNAPSHOT.jar"
+}
+
