@@ -32,11 +32,15 @@ resource "aws_iam_role" "s3_readonly_role" {
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { AWS = "arn:aws:iam::774305617674:user/ec2-internship" }
-    }]
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::774305617674:user/ec2-internship"
+        }
+      }
+    ]
   })
 
   tags = { Name = "s3-readonly-role-${var.stage}" }
@@ -192,29 +196,36 @@ resource "null_resource" "upload_cloud_init_logs" {
   triggers = { instance_id = aws_instance.app_server.id }
 
   provisioner "local-exec" {
-    command = <<EOF
-      aws ec2 get-console-output --instance-id ${aws_instance.app_server.id} --region ${var.aws_region} --output text > /tmp/cloud-init-${aws_instance.app_server.id}.log
-      aws s3 cp /tmp/cloud-init-${aws_instance.app_server.id}.log s3://${var.s3_bucket_name}/ec2/logs/cloud-init-${aws_instance.app_server.id}.log --region ${var.aws_region}
-      rm /tmp/cloud-init-${aws_instance.app_server.id}.log
-      echo 'Cloud-init logs uploaded to S3'
-    EOF
-  }
-  depends_on = [aws_instance.app_server]
+  command = <<EOF
+    nohup sh -c "
+      sleep ${local.config.shutdown_delay} && \
+      aws ec2 stop-instances --instance-ids ${self.id} --region ${var.aws_region} && \
+      sleep 60 && \
+      aws s3 cp /home/ec2-user/app.log s3://${var.s3_bucket_name}/app/logs/app-${self.id}.log --region ${var.aws_region} && \
+      echo 'Logs uploaded to S3 bucket: ${var.s3_bucket_name}'
+    " > /tmp/app_server_provision.log 2>&1 &
+  EOF
+ }
+
 }
 
-# ----------------- Verify S3 Access (Safe) -----------------
-resource "null_resource" "verify_s3_access" {
-  triggers = { bucket_name = var.s3_bucket_name }
-
-  provisioner "local-exec" {
-    command = <<EOF
-      if aws s3 ls s3://${var.s3_bucket_name}/ > /dev/null 2>&1; then
-        echo "SUCCESS: Can list objects in S3 bucket ${var.s3_bucket_name}"
-      else
-        echo "WARNING: Cannot list objects in S3 bucket ${var.s3_bucket_name}. Check IAM policies."
-      fi
-    EOF
+# Null resource to upload cloud-init logs after instance shutdown
+resource "null_resource" "upload_cloud_init_logs" {
+  triggers = {
+    instance_id = aws_instance.app_server.id
   }
-  depends_on = [aws_s3_bucket.logs_bucket, aws_iam_role_policy_attachment.s3_readonly_attachment]
+  provisioner "local-exec" {
+  command = <<EOF
+    nohup sh -c "
+      aws ec2 stop-instances --instance-ids ${aws_instance.app_server.id} --region ${var.aws_region} && \
+      aws ec2 wait instance-stopped --instance-ids ${aws_instance.app_server.id} --region ${var.aws_region} && \
+      aws ec2 get-console-output --instance-id ${aws_instance.app_server.id} --region ${var.aws_region} --output text > /tmp/cloud-init-${aws_instance.app_server.id}.log && \
+      aws s3 cp /tmp/cloud-init-${aws_instance.app_server.id}.log s3://${var.s3_bucket_name}/ec2/logs/cloud-init-${aws_instance.app_server.id}.log --region ${var.aws_region} && \
+      rm /tmp/cloud-init-${aws_instance.app_server.id}.log && \
+      echo 'Cloud-init logs uploaded to S3'
+    " > /tmp/cloud_init_upload.log 2>&1 &
+  EOF
+}
+  depends_on = [aws_instance.app_server]
 }
 
