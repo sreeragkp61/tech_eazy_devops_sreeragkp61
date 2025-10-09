@@ -37,3 +37,18 @@ output "s3_bucket_url" {
   description = "S3 bucket URL"
   value       = "s3://${aws_s3_bucket.logs_bucket.bucket}"
 }
+output "app_jar_bucket" {
+  description = "S3 bucket where the app JAR is uploaded"
+  value       = aws_s3_bucket.app_jar_bucket.bucket
+}
+
+output "elb_dns_name" {
+  description = "DNS name of the ELB"
+  value       = aws_elb.app_elb.dns_name
+}
+
+output "elb_logs_bucket" {
+  description = "S3 bucket for ELB logs"
+  value       = aws_s3_bucket.elb_logs.bucket
+}
+

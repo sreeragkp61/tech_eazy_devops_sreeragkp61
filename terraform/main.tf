@@ -9,6 +9,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+  profile = "default"
 }
 
 locals {
@@ -255,6 +256,45 @@ data "aws_ami" "amazon_linux" {
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
 }
+# ----------------- S3 Bucket for App JAR -----------------
+resource "aws_s3_bucket" "app_jar_bucket" {
+  bucket = var.app_jar_s3_bucket
+  tags   = { Name = "app-jar-bucket-${var.stage}", Environment = var.stage }
+}
+
+resource "aws_s3_bucket_public_access_block" "app_jar_bucket_block" {
+  bucket                  = aws_s3_bucket.app_jar_bucket.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_security_group" "elb_sg" {
+  name        = "devops-elb-${var.stage}-sg"
+  description = "Allow HTTP traffic to ELB"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "devops-elb-${var.stage}" }
+}
+
+resource "aws_elb" "app_elb" {
+  name            = "devops-app-elb-${var.stage}"
+  security_groups = [aws_security_group.elb_sg.id]
+  instances       = [for i in aws_instance.app_servers : i.id]
 
 # ----------------- IAM Roles & Policies -----------------
 resource "aws_iam_role" "s3_readonly_role" {
